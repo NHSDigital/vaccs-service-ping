@@ -1,5 +1,3 @@
 # Name | URL   (lines starting with # are comments)
-Public Site | https://example.com
-API Health | https://api.example.com/health
-Admin Portal | https://admin.example.com/login
+MYA | https://www.nhs.uk/manage-your-appointments/login
 
