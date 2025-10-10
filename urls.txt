@@ -1,3 +1,8 @@
 # Name | URL   (lines starting with # are comments)
 MYA | https://www.nhs.uk/manage-your-appointments/login
-
+SPI | https://select-people-for-invitation.nhs.uk/
+RAVS | https://www.ravs.england.nhs.uk/login
+MAVIS | https://www.manage-vaccinations-in-schools.nhs.uk/start
+NBS Flu | https://www.nhs.uk/nhs-services/vaccination-and-booking-services/book-flu-vaccination/
+NBS Covid | https://www.nhs.uk/nhs-services/vaccination-and-booking-services/book-covid-19-vaccination/
+NBS RSV | https://www.nhs.uk/nhs-services/vaccination-and-booking-services/book-or-cancel-an-rsv-vaccination-at-a-pharmacy/
