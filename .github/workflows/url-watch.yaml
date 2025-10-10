@@ -14,7 +14,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check URLs
+      - name: Check URLs (Workflow Builder friendly)
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           CURL_TIMEOUT_SECS: "12"
@@ -26,59 +26,49 @@ jobs:
             exit 1
           fi
 
-          trim() { awk '{$1=$1;print}'; }  # trim leading/trailing whitespace
+          trim() { awk '{$1=$1;print}'; }
 
-          FAILURES=""
+          FAIL_COUNT=0
           TOTAL=0
           while IFS= read -r LINE || [ -n "$LINE" ]; do
-            # skip blank/comment lines
             [[ -z "$LINE" || "$LINE" =~ ^[[:space:]]*# ]] && continue
-
-            # split on first pipe
-            if [[ "$LINE" != *"|"* ]]; then
-              echo "WARN: Skipping line without '|': $LINE"
-              continue
-            fi
+            [[ "$LINE" != *"|"* ]] && { echo "WARN: skipping line without '|': $LINE"; continue; }
 
             NAME_RAW=${LINE%%|*}
             URL_RAW=${LINE#*|}
             NAME=$(printf "%s" "$NAME_RAW" | trim)
             URL=$(printf "%s" "$URL_RAW" | trim)
-
-            # basic validation
-            if [[ -z "$NAME" || -z "$URL" ]]; then
-              echo "WARN: Skipping malformed line: $LINE"
-              continue
-            fi
+            [[ -z "$NAME" || -z "$URL" ]] && { echo "WARN: malformed line: $LINE"; continue; }
 
             TOTAL=$((TOTAL+1))
 
-            # Hit URL with timeout and follow redirects; capture HTTP code
             CURL_ERR=""
             HTTP_CODE=$(curl -sS -L -m "${CURL_TIMEOUT_SECS}" -o /dev/null -w "%{http_code}" "$URL") || CURL_ERR=$?
 
             if [ -n "$CURL_ERR" ]; then
-              FAILURES+="- ${NAME} (${URL}) — unreachable (curl exit ${CURL_ERR})\n"
+              TEXT=":rotating_light: URL Watch — ${NAME} unreachable (curl exit ${CURL_ERR}) — <${URL}>"
+              jq -n --arg text "$TEXT" '{text:$text}' \
+                | curl -sS -X POST -H 'Content-type: application/json' -d @- "$SLACK_WEBHOOK_URL" > /dev/null
+              FAIL_COUNT=$((FAIL_COUNT+1))
+              # optional: avoid burst posting
+              sleep 0.5
               continue
             fi
 
-            # Non-2xx/3xx = failure
             case "$HTTP_CODE" in
               2*|3*) : ;;   # OK
               *)
-                FAILURES+="- ${NAME} (${URL}) — HTTP ${HTTP_CODE}\n"
+                TEXT=":rotating_light: URL Watch — ${NAME} HTTP ${HTTP_CODE} — <${URL}>"
+                jq -n --arg text "$TEXT" '{text:$text}' \
+                  | curl -sS -X POST -H 'Content-type: application/json' -d @- "$SLACK_WEBHOOK_URL" > /dev/null
+                FAIL_COUNT=$((FAIL_COUNT+1))
+                sleep 0.5
                 ;;
             esac
           done < urls.txt
 
-          if [ -n "$FAILURES" ]; then
-            TITLE="*URL Watch:* issues detected"
-            TEXT="${TITLE}\n${FAILURES}"
-            # Use a simple text payload for broad Slack compatibility
-            PAYLOAD=$(jq -Rn --arg text "$TEXT" '{text: $text}')
-            curl -sS -X POST -H 'Content-type: application/json' \
-              --data "$PAYLOAD" "$SLACK_WEBHOOK_URL" > /dev/null
-            echo "Posted failures to Slack."
-          else
+          if [ "$FAIL_COUNT" -eq 0 ]; then
             echo "All OK across ${TOTAL} checks (no Slack post)."
+          else
+            echo "Posted ${FAIL_COUNT} failure message(s) to Slack."
           fi
