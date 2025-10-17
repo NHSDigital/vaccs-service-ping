@@ -43,7 +43,7 @@ jobs:
             TOTAL=$((TOTAL+1))
 
             CURL_ERR=""
-            HTTP_CODE=$(curl -sS -L -m "${CURL_TIMEOUT_SECS}" -o /dev/null -w "%{http_code}" "$URL") || CURL_ERR=$?
+            HTTP_CODE=$(curl -b "" -sS -L -m "${CURL_TIMEOUT_SECS}" -o /dev/null -w "%{http_code}" "$URL") || CURL_ERR=$?
 
             if [ -n "$CURL_ERR" ]; then
               TEXT=":rotating_light: URL Watch — ${NAME} unreachable (curl exit ${CURL_ERR}) — <${URL}>"
